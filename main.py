@@ -13,14 +13,14 @@ logging.basicConfig(
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
 )
 
-mcp = FastMCP("BiomniTools")
+mcp = FastMCP(
+    "BiomniTools",
+    host="0.0.0.0",
+    port=int(os.getenv("DATABRICKS_APP_PORT", "8000")),
+)
 workspace_client = WorkspaceClient()
 
 register_all_tools(mcp, workspace_client)
 
 if __name__ == "__main__":
-    mcp.run(
-        transport="streamable-http",
-        host="0.0.0.0",
-        port=int(os.getenv("DATABRICKS_APP_PORT", "8000")),
-    )
+    mcp.run(transport="streamable-http")
