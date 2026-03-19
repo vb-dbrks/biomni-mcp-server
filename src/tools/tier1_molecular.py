@@ -264,14 +264,17 @@ def register(mcp: FastMCP) -> None:
         program: str = "blastp",
         max_hits: int = 5,
     ) -> str:
-        """Submit a BLAST search against NCBI. Returns a job ID immediately.
+        """Submit a BLAST sequence search to NCBI. This is a two-step async tool.
 
-        NCBI BLAST takes 30-90 seconds. This tool submits the search and
-        returns a job ID. Use check_blast_result with the job ID to get results.
+        Step 1: Call this tool — it returns a job_id immediately.
+        Step 2: Wait 60 seconds, then call the MCP tool check_blast_result with that job_id to retrieve results.
+
+        You MUST call the check_blast_result MCP tool after ~60 seconds to get the actual BLAST hits.
+        Do NOT try to run Python code to check results — use the check_blast_result MCP tool.
 
         Args:
             sequence: Query sequence (amino acid or nucleotide).
-            database: BLAST database — swissprot (fast), pdb, nr (slow), refseq_protein.
+            database: BLAST database — swissprot (default, fast), pdb, nr (slow), refseq_protein.
             program: BLAST program (blastp, blastn, blastx, tblastn).
             max_hits: Maximum number of alignments to report (default 5).
         """
@@ -329,10 +332,10 @@ def register(mcp: FastMCP) -> None:
 
     @mcp.tool()
     async def check_blast_result(job_id: str) -> str:
-        """Check the result of a previously submitted BLAST search.
+        """Retrieve results from a previously submitted BLAST search. Call this MCP tool after waiting ~60 seconds from submitting blast_sequence. If results say 'still running', wait another 30 seconds and call this MCP tool again.
 
         Args:
-            job_id: The job ID returned by blast_sequence.
+            job_id: The job ID returned by blast_sequence (e.g. 'blast-1').
         """
         if job_id not in _blast_results:
             return f"**Error:** Unknown job ID: {job_id}"
