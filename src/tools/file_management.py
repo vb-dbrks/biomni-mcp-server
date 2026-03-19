@@ -3,14 +3,13 @@
 import base64
 import os
 
-from databricks.sdk import WorkspaceClient
 from mcp.server.fastmcp import FastMCP
 
 from src.config import config
 from src.file_io import ensure_output_dir, list_files, read_file_head
 
 
-def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
+def register(mcp: FastMCP) -> None:
     @mcp.tool()
     async def manage_volume_files(
         action: str,

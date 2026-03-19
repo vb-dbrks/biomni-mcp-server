@@ -1,12 +1,12 @@
 """Unified job management tool for monitoring Databricks job runs."""
 
-from databricks.sdk import WorkspaceClient
 from mcp.server.fastmcp import FastMCP
 
+from src.auth import get_workspace_client
 from src.job_runner import cancel_job, get_job_status, list_recent_runs
 
 
-def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
+def register(mcp: FastMCP) -> None:
     @mcp.tool()
     async def manage_jobs(
         action: str,
@@ -23,7 +23,8 @@ def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
         if action == "status":
             if not run_id:
                 return "**Error:** 'status' requires a `run_id`."
-            status = await get_job_status(workspace_client, run_id)
+            ws = get_workspace_client()
+            status = await get_job_status(ws, run_id)
             state = status["state"]
             result = status.get("result_state")
             url = status.get("run_page_url", "")
@@ -38,7 +39,8 @@ def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
             return "\n".join(lines)
 
         elif action == "list":
-            runs = await list_recent_runs(workspace_client, limit)
+            ws = get_workspace_client()
+            runs = await list_recent_runs(ws, limit)
             if not runs:
                 return "No recent Biomni jobs found."
             lines = ["## Recent Biomni Jobs\n"]
@@ -52,7 +54,8 @@ def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
         elif action == "cancel":
             if not run_id:
                 return "**Error:** 'cancel' requires a `run_id`."
-            msg = await cancel_job(workspace_client, run_id)
+            ws = get_workspace_client()
+            msg = await cancel_job(ws, run_id)
             return msg
 
         else:

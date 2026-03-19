@@ -4,11 +4,11 @@ import logging
 import os
 
 import uvicorn
-from databricks.sdk import WorkspaceClient
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from starlette.middleware.cors import CORSMiddleware
 
+from src.auth import OBOAuthMiddleware
 from src.tools import register_all_tools
 
 logging.basicConfig(
@@ -17,10 +17,7 @@ logging.basicConfig(
 )
 
 # Allow Databricks workspace origins to connect
-databricks_host = os.getenv("DATABRICKS_HOST", "")
 allowed_origins = ["*"]
-if databricks_host:
-    allowed_origins.append(databricks_host.rstrip("/"))
 
 mcp = FastMCP(
     "BiomniTools",
@@ -31,11 +28,13 @@ mcp = FastMCP(
         allowed_origins=allowed_origins,
     ),
 )
-workspace_client = WorkspaceClient()
 
-register_all_tools(mcp, workspace_client)
+register_all_tools(mcp)
 
 app = mcp.streamable_http_app()
+
+# OBO middleware must be added before CORS so it runs on every request
+app.add_middleware(OBOAuthMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

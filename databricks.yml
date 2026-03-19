@@ -23,6 +23,11 @@ resources:
       # Set SPARK_CLUSTER_ID and GPU_CLUSTER_ID in app.yaml
       # or via the Databricks Apps UI after deployment.
 
+      # OBO: request user token scopes so API calls run as the user
+      user_api_scopes:
+        - sql
+        - files.files
+
       permissions:
         - level: CAN_USE
           group_name: users

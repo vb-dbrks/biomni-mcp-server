@@ -1,15 +1,15 @@
 """Tier 2 — unified alignment pipeline tool via Glow Pipe Transformer."""
 
-from databricks.sdk import WorkspaceClient
 from mcp.server.fastmcp import FastMCP
 
+from src.auth import get_workspace_client
 from src.config import config
 from src.job_runner import submit_notebook_job
 
 NOTEBOOK_PATH = "/Workspace/biomni-tools/notebooks/tier2_glow_template"
 
 
-def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
+def register(mcp: FastMCP) -> None:
     cluster_id = config.spark_cluster_id
 
     @mcp.tool()
@@ -70,8 +70,9 @@ def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
                 "output_path": output_volume_path,
             }
 
+        ws = get_workspace_client()
         run_id = await submit_notebook_job(
-            workspace_client,
+            ws,
             notebook_path=NOTEBOOK_PATH,
             parameters=params,
             cluster_id=cluster_id,

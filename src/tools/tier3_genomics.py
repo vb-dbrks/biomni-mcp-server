@@ -1,8 +1,8 @@
 """Tier 3 — genomics tools running on cluster driver node."""
 
-from databricks.sdk import WorkspaceClient
 from mcp.server.fastmcp import FastMCP
 
+from src.auth import get_workspace_client
 from src.config import config
 from src.job_runner import submit_notebook_job
 
@@ -17,7 +17,7 @@ def _job_msg(tool_name: str, run_id: str) -> str:
     )
 
 
-def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
+def register(mcp: FastMCP) -> None:
     cluster_id = config.spark_cluster_id
 
     @mcp.tool()
@@ -46,8 +46,9 @@ def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
         if tool == "macs2":
             if not control_file:
                 return "**Error:** MACS2 requires a `control_file`."
+            ws = get_workspace_client()
             run_id = await submit_notebook_job(
-                workspace_client, notebook_path=NOTEBOOK_PATH,
+                ws, notebook_path=NOTEBOOK_PATH,
                 parameters={
                     "tool": "macs2_peak_calling",
                     "chip_seq_file": input_file, "control_file": control_file,
@@ -59,8 +60,9 @@ def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
             return _job_msg("MACS2 Peak Calling", run_id)
 
         elif tool == "homer":
+            ws = get_workspace_client()
             run_id = await submit_notebook_job(
-                workspace_client, notebook_path=NOTEBOOK_PATH,
+                ws, notebook_path=NOTEBOOK_PATH,
                 parameters={
                     "tool": "homer_motif_finding",
                     "peak_file": input_file, "genome": genome,
@@ -91,8 +93,9 @@ def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
             output_volume_path: Volume directory for VCF output.
         """
         ref_path = f"{config.genome_path}/{reference_genome}/{reference_genome}.fa"
+        ws = get_workspace_client()
         run_id = await submit_notebook_job(
-            workspace_client, notebook_path=NOTEBOOK_PATH,
+            ws, notebook_path=NOTEBOOK_PATH,
             parameters={
                 "tool": "gatk_mutect2_snpeff",
                 "tumor_bam": tumor_bam, "normal_bam": normal_bam,
@@ -127,8 +130,9 @@ def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
             targets_bed: Target regions BED for cnvkit exome/panel data (optional).
         """
         if tool == "lumpy":
+            ws = get_workspace_client()
             run_id = await submit_notebook_job(
-                workspace_client, notebook_path=NOTEBOOK_PATH,
+                ws, notebook_path=NOTEBOOK_PATH,
                 parameters={
                     "tool": "lumpy_sv",
                     "bam_file": input_bam,
@@ -144,8 +148,9 @@ def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
             if not normal_bam:
                 return "**Error:** CNVkit requires a `normal_bam`."
             ref_path = f"{config.genome_path}/{reference_genome}/{reference_genome}.fa"
+            ws = get_workspace_client()
             run_id = await submit_notebook_job(
-                workspace_client, notebook_path=NOTEBOOK_PATH,
+                ws, notebook_path=NOTEBOOK_PATH,
                 parameters={
                     "tool": "cnvkit_analysis",
                     "tumor_bam": input_bam, "normal_bam": normal_bam,

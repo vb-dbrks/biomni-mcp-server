@@ -8,7 +8,6 @@ import asyncio
 import os
 import tempfile
 
-from databricks.sdk import WorkspaceClient
 from mcp.server.fastmcp import FastMCP
 
 from src.file_io import ensure_output_dir, write_text
@@ -19,7 +18,7 @@ from src.validation import ValidationError, validate_rna_sequence
 TIER1_OUTPUT = "/tmp/biomni"
 
 
-def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
+def register(mcp: FastMCP) -> None:
     # ── ViennaRNA ──────────────────────────────────────────────────────
 
     @mcp.tool()

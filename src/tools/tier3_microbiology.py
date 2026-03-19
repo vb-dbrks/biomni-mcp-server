@@ -1,15 +1,15 @@
 """Tier 3 tools — microbiology (Prokka) running on cluster driver node."""
 
-from databricks.sdk import WorkspaceClient
 from mcp.server.fastmcp import FastMCP
 
+from src.auth import get_workspace_client
 from src.config import config
 from src.job_runner import submit_notebook_job
 
 NOTEBOOK_PATH = "/Workspace/biomni-tools/notebooks/tier3_driver_template"
 
 
-def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
+def register(mcp: FastMCP) -> None:
     cluster_id = config.spark_cluster_id
 
     @mcp.tool()
@@ -29,8 +29,9 @@ def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
             strain: Optional strain name.
             output_volume_path: Volume directory for annotation output.
         """
+        ws = get_workspace_client()
         run_id = await submit_notebook_job(
-            workspace_client,
+            ws,
             notebook_path=NOTEBOOK_PATH,
             parameters={
                 "tool": "prokka_annotation",
@@ -45,5 +46,5 @@ def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
         return (
             f"## Prokka Bacterial Genome Annotation\n\n"
             f"Job submitted (Run ID: **{run_id}**).\n\n"
-            f"Use `check_job_status('{run_id}')` to monitor progress."
+            f"Use `manage_jobs(action='status', run_id='{run_id}')` to monitor."
         )

@@ -1,8 +1,8 @@
 """Tier 4 — GPU tools consolidated into two MCP tools."""
 
-from databricks.sdk import WorkspaceClient
 from mcp.server.fastmcp import FastMCP
 
+from src.auth import get_workspace_client
 from src.config import config
 from src.job_runner import submit_notebook_job
 
@@ -17,7 +17,7 @@ def _job_msg(tool_name: str, run_id: str) -> str:
     )
 
 
-def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
+def register(mcp: FastMCP) -> None:
     cluster_id = config.gpu_cluster_id
 
     @mcp.tool()
@@ -42,8 +42,9 @@ def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
         if tool == "nnunet":
             if not task_id:
                 return "**Error:** nnUNet requires a `task_id`."
+            ws = get_workspace_client()
             run_id = await submit_notebook_job(
-                workspace_client, notebook_path=NOTEBOOK_PATH,
+                ws, notebook_path=NOTEBOOK_PATH,
                 parameters={
                     "tool": "nnunet_segment",
                     "image_path": image_path, "task_id": task_id,
@@ -55,8 +56,9 @@ def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
             return _job_msg("nnUNet Segmentation (GPU)", run_id)
 
         elif tool == "cellpose":
+            ws = get_workspace_client()
             run_id = await submit_notebook_job(
-                workspace_client, notebook_path=NOTEBOOK_PATH,
+                ws, notebook_path=NOTEBOOK_PATH,
                 parameters={
                     "tool": "cellpose_segment",
                     "image_path": image_path,
@@ -107,8 +109,9 @@ def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
         if tool == "diffdock":
             if not ligand_smiles:
                 return "**Error:** DiffDock requires `ligand_smiles`."
+            ws = get_workspace_client()
             run_id = await submit_notebook_job(
-                workspace_client, notebook_path=NOTEBOOK_PATH,
+                ws, notebook_path=NOTEBOOK_PATH,
                 parameters={
                     "tool": "diffdock_predict",
                     "protein_pdb_path": receptor_path,
@@ -123,8 +126,9 @@ def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
         elif tool == "vina":
             if not ligand_pdbqt:
                 return "**Error:** AutoDock Vina requires `ligand_pdbqt`."
+            ws = get_workspace_client()
             run_id = await submit_notebook_job(
-                workspace_client, notebook_path=NOTEBOOK_PATH,
+                ws, notebook_path=NOTEBOOK_PATH,
                 parameters={
                     "tool": "autodock_vina",
                     "receptor_pdbqt": receptor_path,
@@ -141,8 +145,9 @@ def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
             return _job_msg("AutoDock Vina Docking (GPU)", run_id)
 
         elif tool == "autosite":
+            ws = get_workspace_client()
             run_id = await submit_notebook_job(
-                workspace_client, notebook_path=NOTEBOOK_PATH,
+                ws, notebook_path=NOTEBOOK_PATH,
                 parameters={
                     "tool": "autosite_predict",
                     "receptor_pdb": receptor_path,

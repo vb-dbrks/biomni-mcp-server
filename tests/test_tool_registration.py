@@ -11,10 +11,9 @@ from mcp.server.fastmcp import FastMCP
 def mcp_with_tools():
     """Create a FastMCP instance with all tools registered."""
     mcp = FastMCP("TestBiomniTools")
-    client = MagicMock()
 
     from src.tools import register_all_tools
-    register_all_tools(mcp, client)
+    register_all_tools(mcp)
     return mcp
 
 
