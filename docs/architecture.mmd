@@ -1,0 +1,38 @@
+flowchart TD
+    subgraph Clients["MCP Clients"]
+        C1["Claude / AI Agents"]
+        C2["Genie Code"]
+        C3["Custom Apps"]
+    end
+
+    Clients -->|"HTTPS + OAuth"| APP
+
+    subgraph DWS["Databricks Workspace"]
+        APP["Databricks App<br/>FastMCP Server<br/>mcp-biomni-tools"]
+
+        subgraph T1["Tier 1: In-App (Python packages)"]
+            T1T["ViennaRNA  |  BLAST  |  MUSCLE<br/>pLannotate  |  PyLabRobot"]
+        end
+
+        subgraph T2["Tier 2: Glow Pipe Transformer"]
+            T2T["BWA  |  Samtools  |  BCFtools  |  Bedtools"]
+        end
+
+        subgraph T3["Tier 3: Cluster Driver"]
+            T3T["MACS2  |  HOMER  |  Prokka  |  GATK<br/>LUMPY  |  CNVkit  |  SnpEff"]
+        end
+
+        subgraph T4["Tier 4: GPU Container Services"]
+            T4T["nnUNet  |  DiffDock  |  Cellpose<br/>AutoDock Vina  |  AutoSite"]
+        end
+
+        UC["Unity Catalog Volumes<br/>Input/Output Data  |  Reference Genomes  |  Model Weights"]
+    end
+
+    APP -->|"subprocess"| T1
+    APP -->|"Jobs API"| T2
+    APP -->|"Jobs API"| T3
+    APP -->|"Jobs API"| T4
+    T2 <--> UC
+    T3 <--> UC
+    T4 <--> UC
