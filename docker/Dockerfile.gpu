@@ -1,0 +1,41 @@
+# GPU image for Tier 4 tools — used via Databricks Container Services
+FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y \
+    python3.11 python3.11-venv python3-pip wget git \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1
+
+# PyTorch (CUDA 12.1)
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
+# nnUNet
+RUN pip install --no-cache-dir nnunetv2
+
+# Cellpose
+RUN pip install --no-cache-dir cellpose[gui]
+
+# DiffDock dependencies
+RUN pip install --no-cache-dir \
+    fair-esm \
+    biopython \
+    rdkit-pypi \
+    scipy \
+    pandas \
+    e3nn
+
+# AutoDock Vina
+RUN pip install --no-cache-dir meeko vina
+
+# Databricks dependencies
+RUN pip install --no-cache-dir databricks-sdk pyspark
+
+# Copy runner package
+COPY runner/ /opt/biomni-runner/
+RUN pip install --no-cache-dir /opt/biomni-runner/
+
+WORKDIR /workspace

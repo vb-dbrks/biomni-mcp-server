@@ -1,0 +1,16 @@
+command:
+  - python
+  - main.py
+env:
+  - name: BIOMNI_CATALOG
+    value: "bioinformatics"
+  - name: BIOMNI_SCHEMA
+    value: "tools"
+  - name: BIOMNI_VOLUME
+    value: "workspace_files"
+  - name: BIOMNI_REF_VOLUME
+    value: "reference_data"
+  - name: SPARK_CLUSTER_ID
+    value: "<standard-cluster-id>"
+  - name: GPU_CLUSTER_ID
+    value: "<gpu-cluster-id>"

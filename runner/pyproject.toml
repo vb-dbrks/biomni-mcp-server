@@ -1,0 +1,13 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "biomni-runner"
+version = "0.1.0"
+description = "Cluster-side execution module for Biomni MCP tools"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+biomni-runner = "biomni_runner.cli:main"
