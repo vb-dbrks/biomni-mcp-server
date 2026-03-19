@@ -12,9 +12,12 @@ from src.auth import OBOAuthMiddleware
 from src.tools import register_all_tools
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+    stream=__import__("sys").stdout,
+    force=True,
 )
+print("=== Biomni MCP Server starting ===", flush=True)
 
 # Allow Databricks workspace origins to connect
 allowed_origins = ["*"]
@@ -23,6 +26,7 @@ mcp = FastMCP(
     "BiomniTools",
     stateless_http=True,
     json_response=True,
+    log_level="DEBUG",
     transport_security=TransportSecuritySettings(
         enable_dns_rebinding_protection=False,
         allowed_origins=allowed_origins,

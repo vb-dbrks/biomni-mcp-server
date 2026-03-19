@@ -23,6 +23,18 @@ TIER1_OUTPUT = "/tmp/biomni"
 
 
 def register(mcp: FastMCP) -> None:
+    # ── Ping (instant test) ────────────────────────────────────────────
+
+    @mcp.tool()
+    async def ping_biomni(message: str = "hello") -> str:
+        """Simple ping to test the MCP server is responding. Returns the message back.
+
+        Args:
+            message: Any text to echo back.
+        """
+        print(f"=== PING called: {message} ===", flush=True)
+        return f"Biomni MCP server is running. You said: {message}"
+
     # ── ViennaRNA ──────────────────────────────────────────────────────
 
     @mcp.tool()
@@ -37,6 +49,7 @@ def register(mcp: FastMCP) -> None:
             temperature: Folding temperature in Celsius (default 37.0).
         """
         t0 = time.monotonic()
+        print(f"=== TOOL CALLED: predict_rna_secondary_structure seq={rna_sequence[:20]}... ===", flush=True)
         logger.info("predict_rna_secondary_structure called: seq=%s... temp=%s", rna_sequence[:20], temperature)
 
         try:
@@ -257,13 +270,13 @@ def register(mcp: FastMCP) -> None:
             program: BLAST program (blastp, blastn, blastx, tblastn).
             max_hits: Maximum number of alignments to report (default 5).
         """
+        print(f"=== BLAST called: program={program} db={database} seq={sequence[:20]}... ===", flush=True)
         VALID_PROGRAMS = {"blastp", "blastn", "blastx", "tblastn", "tblastx"}
         if program not in VALID_PROGRAMS:
             return f"**Error:** Invalid program: {program}. Use: {', '.join(sorted(VALID_PROGRAMS))}"
 
         try:
             from Bio.Blast import NCBIWWW, NCBIXML
-            import concurrent.futures
 
             loop = asyncio.get_event_loop()
 
@@ -287,18 +300,7 @@ def register(mcp: FastMCP) -> None:
 
                 return "\n".join(lines) if lines else "(no hits found)"
 
-            try:
-                result_text = await asyncio.wait_for(
-                    loop.run_in_executor(None, do_blast),
-                    timeout=25,
-                )
-            except asyncio.TimeoutError:
-                return (
-                    f"**BLAST search timed out** (25s limit). "
-                    f"The NCBI {database} database may be slow right now.\n\n"
-                    f"Try: `blast_sequence(sequence='...', database='swissprot')` for faster results, "
-                    f"or use `database='pdb'` for protein structures."
-                )
+            result_text = await loop.run_in_executor(None, do_blast)
 
             return format_tool_result(
                 f"BLAST Search ({program} vs {database})",
