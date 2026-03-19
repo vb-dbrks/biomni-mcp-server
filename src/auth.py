@@ -50,10 +50,11 @@ def get_workspace_client() -> WorkspaceClient:
 
 
 class OBOAuthMiddleware:
-    """Pure ASGI middleware — no BaseHTTPMiddleware (avoids streaming issues).
+    """Pure ASGI middleware for OBO auth.
 
-    Extracts X-Forwarded-Access-Token from request headers and sets a
-    per-request WorkspaceClient via contextvars before passing to the app.
+    Lazily creates a WorkspaceClient only when get_workspace_client() is
+    actually called (i.e., Tier 2/3/4 tools). Tier 1 tools don't call it,
+    so no WorkspaceClient is created for them — zero overhead.
     """
 
     def __init__(self, app: ASGIApp) -> None:
@@ -64,17 +65,35 @@ class OBOAuthMiddleware:
             await self.app(scope, receive, send)
             return
 
+        # Store the token in a context var — client created lazily on first use
         headers = dict(scope.get("headers", []))
         user_token = headers.get(b"x-forwarded-access-token", b"").decode() or None
-        user_email = headers.get(b"x-forwarded-email", b"unknown").decode()
 
         if user_token:
             host = os.environ.get("DATABRICKS_HOST", "")
-            cfg = Config(host=host, token=user_token, auth_type="pat")
-            client = WorkspaceClient(config=cfg)
-            _workspace_client_var.set(client)
-            logger.info("OBO auth: running as user %s", user_email)
+            # Create a lazy wrapper that builds the client only when accessed
+            _user_token_var.set((host, user_token))
         else:
-            _workspace_client_var.set(_get_sp_client())
+            _user_token_var.set(None)
 
         await self.app(scope, receive, send)
+
+
+# Lazy token storage — avoids creating WorkspaceClient on every request
+_user_token_var: contextvars.ContextVar[tuple[str, str] | None] = contextvars.ContextVar(
+    "user_token", default=None
+)
+
+
+def get_workspace_client() -> WorkspaceClient:
+    """Get the WorkspaceClient for the current request.
+
+    Lazily creates an OBO client from the stored user token, or falls
+    back to the service principal. Only called by Tier 2/3/4 tools.
+    """
+    token_info = _user_token_var.get(None)
+    if token_info is not None:
+        host, token = token_info
+        cfg = Config(host=host, token=token, auth_type="pat")
+        return WorkspaceClient(config=cfg)
+    return _get_sp_client()
