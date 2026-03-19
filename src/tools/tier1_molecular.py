@@ -5,14 +5,18 @@ and return results directly in the MCP response. No UC Volume needed.
 """
 
 import asyncio
+import logging
 import os
 import tempfile
+import time
 
 from mcp.server.fastmcp import FastMCP
 
 from src.file_io import ensure_output_dir, write_text
 from src.tool_wrapper import format_error, format_tool_result
 from src.validation import ValidationError, validate_rna_sequence
+
+logger = logging.getLogger("biomni.tier1")
 
 # Tier 1 tools write to /tmp — results are returned inline, no Volume needed
 TIER1_OUTPUT = "/tmp/biomni"
@@ -32,21 +36,33 @@ def register(mcp: FastMCP) -> None:
             rna_sequence: RNA sequence string (ACGU characters, max 10000).
             temperature: Folding temperature in Celsius (default 37.0).
         """
+        t0 = time.monotonic()
+        logger.info("predict_rna_secondary_structure called: seq=%s... temp=%s", rna_sequence[:20], temperature)
+
         try:
             rna_sequence = validate_rna_sequence(rna_sequence)
+            logger.info("Validation passed (%.3fs)", time.monotonic() - t0)
         except ValidationError as e:
+            logger.warning("Validation failed: %s", e)
             return f"**Validation error:** {e}"
 
         try:
+            logger.info("Importing RNA module...")
+            t1 = time.monotonic()
             import RNA
+            logger.info("RNA imported (%.3fs)", time.monotonic() - t1)
 
+            t2 = time.monotonic()
             md = RNA.md()
             md.temperature = temperature
             fc = RNA.fold_compound(rna_sequence, md)
             structure, mfe = fc.mfe()
+            logger.info("MFE computed (%.3fs): %s %.2f", time.monotonic() - t2, structure, mfe)
 
+            t3 = time.monotonic()
             fc.pf()
             centroid_struct, centroid_dist = fc.centroid()
+            logger.info("Centroid computed (%.3fs)", time.monotonic() - t3)
 
             result_text = (
                 f"Sequence:    {rna_sequence}\n"
@@ -58,13 +74,16 @@ def register(mcp: FastMCP) -> None:
                 f"Length:      {len(rna_sequence)} nt"
             )
 
+            logger.info("Tool completed successfully (%.3fs total)", time.monotonic() - t0)
             return format_tool_result(
                 "RNA Structure Prediction (ViennaRNA)",
                 stdout=result_text,
             )
-        except ImportError:
+        except ImportError as e:
+            logger.error("ViennaRNA import failed: %s", e)
             return "**Error:** ViennaRNA Python package not installed. Run: `pip install ViennaRNA`"
         except Exception as e:
+            logger.error("ViennaRNA error (%.3fs): %s", time.monotonic() - t0, e, exc_info=True)
             return format_error("ViennaRNA RNAfold", e)
 
     # ── pLannotate ─────────────────────────────────────────────────────

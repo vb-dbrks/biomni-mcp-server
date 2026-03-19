@@ -69,14 +69,18 @@ class OBOAuthMiddleware:
         headers = dict(scope.get("headers", []))
         user_token = headers.get(b"x-forwarded-access-token", b"").decode() or None
 
+        user_email = headers.get(b"x-forwarded-email", b"").decode() or "unknown"
         if user_token:
             host = os.environ.get("DATABRICKS_HOST", "")
-            # Create a lazy wrapper that builds the client only when accessed
             _user_token_var.set((host, user_token))
+            logger.info("OBO: token stored for %s", user_email)
         else:
             _user_token_var.set(None)
+            logger.debug("No user token in request")
 
+        logger.info("Passing request to app...")
         await self.app(scope, receive, send)
+        logger.info("Request completed")
 
 
 # Lazy token storage — avoids creating WorkspaceClient on every request
