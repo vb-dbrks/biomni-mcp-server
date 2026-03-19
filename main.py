@@ -6,6 +6,7 @@ import os
 import uvicorn
 from databricks.sdk import WorkspaceClient
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from starlette.middleware.cors import CORSMiddleware
 
 from src.tools import register_all_tools
@@ -15,7 +16,19 @@ logging.basicConfig(
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
 )
 
-mcp = FastMCP("BiomniTools")
+# Allow Databricks workspace origins to connect
+databricks_host = os.getenv("DATABRICKS_HOST", "")
+allowed_origins = ["*"]
+if databricks_host:
+    allowed_origins.append(databricks_host.rstrip("/"))
+
+mcp = FastMCP(
+    "BiomniTools",
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=False,
+        allowed_origins=allowed_origins,
+    ),
+)
 workspace_client = WorkspaceClient()
 
 register_all_tools(mcp, workspace_client)
