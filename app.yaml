@@ -11,6 +11,6 @@ env:
   - name: BIOMNI_REF_VOLUME
     value: "reference_data"
   - name: SPARK_CLUSTER_ID
-    value: "<standard-cluster-id>"
+    value: ""
   - name: GPU_CLUSTER_ID
-    value: "<gpu-cluster-id>"
+    value: ""

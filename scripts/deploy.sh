@@ -1,17 +1,17 @@
 #!/bin/bash
-# Deploy the Biomni MCP Server as a Databricks App
+# Deploy the Biomni MCP Server using Databricks Asset Bundles
 set -e
 
-APP_NAME="${1:-biomni-tools}"
+TARGET="${1:-dev}"
 
-echo "=== Deploying Biomni MCP Server as Databricks App ==="
+echo "=== Validating bundle ==="
+databricks bundle validate -t "$TARGET"
 
-# Sync source to workspace
-databricks workspace import-dir . "/Workspace/biomni-tools" --overwrite
+echo "=== Deploying to $TARGET ==="
+databricks bundle deploy -t "$TARGET"
 
-# Deploy the app
-databricks apps deploy "$APP_NAME" --source-code-path "/Workspace/biomni-tools"
+echo "=== Starting app ==="
+databricks bundle run biomni_mcp -t "$TARGET"
 
 echo "=== Deployment complete ==="
-echo "App: $APP_NAME"
-echo "Check status: databricks apps get $APP_NAME"
+echo "Check status: databricks apps get biomni-mcp-server"

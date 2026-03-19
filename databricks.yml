@@ -1,0 +1,42 @@
+bundle:
+  name: biomni-mcp-server
+
+variables:
+  standard_cluster_id:
+    description: "Cluster ID for Tier 2/3 bioinformatics tools (init script pre-installed)"
+  gpu_cluster_id:
+    description: "GPU cluster ID for Tier 4 tools (Container Services image)"
+  catalog:
+    description: "Unity Catalog catalog name"
+    default: "bioinformatics"
+  schema:
+    description: "Unity Catalog schema name"
+    default: "tools"
+
+resources:
+  apps:
+    biomni_mcp:
+      name: "biomni-mcp-server"
+      description: "MCP server exposing 18 bioinformatics CLI tools for AI agents"
+      source_code_path: .
+      # Runtime config (command + env) is in app.yaml.
+      # Set SPARK_CLUSTER_ID and GPU_CLUSTER_ID in app.yaml
+      # or via the Databricks Apps UI after deployment.
+
+      permissions:
+        - level: CAN_USE
+          group_name: users
+
+targets:
+  dev:
+    default: true
+    mode: development
+    variables:
+      standard_cluster_id: ""
+      gpu_cluster_id: ""
+
+  prod:
+    mode: production
+    variables:
+      standard_cluster_id: ""
+      gpu_cluster_id: ""
