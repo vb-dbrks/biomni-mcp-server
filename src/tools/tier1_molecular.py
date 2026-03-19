@@ -321,8 +321,10 @@ def register(mcp: FastMCP) -> None:
             f"- **Program:** {program}\n"
             f"- **Database:** {database}\n"
             f"- **Sequence:** {sequence[:30]}...\n\n"
-            f"NCBI BLAST typically takes 30-90 seconds.\n"
-            f"Use `check_blast_result(job_id='{job_id}')` to get results."
+            f"NCBI BLAST typically takes 30-90 seconds.\n\n"
+            f"**IMPORTANT: To retrieve results, you MUST call the MCP tool "
+            f"`check_blast_result` with job_id='{job_id}' after waiting ~60 seconds. "
+            f"Do NOT use Python code — use the MCP tool.**"
         )
 
     @mcp.tool()
