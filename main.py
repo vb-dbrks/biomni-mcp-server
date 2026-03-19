@@ -24,6 +24,8 @@ if databricks_host:
 
 mcp = FastMCP(
     "BiomniTools",
+    stateless_http=True,
+    json_response=True,
     transport_security=TransportSecuritySettings(
         enable_dns_rebinding_protection=False,
         allowed_origins=allowed_origins,

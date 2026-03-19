@@ -1,5 +1,5 @@
 bundle:
-  name: biomni-mcp-server
+  name: mcp-biomni-tools
 
 variables:
   standard_cluster_id:
@@ -16,7 +16,7 @@ variables:
 resources:
   apps:
     biomni_mcp:
-      name: "biomni-mcp-server"
+      name: "mcp-biomni-tools"
       description: "MCP server exposing 18 bioinformatics CLI tools for AI agents"
       source_code_path: .
       # Runtime config (command + env) is in app.yaml.

@@ -14,4 +14,4 @@ echo "=== Starting app ==="
 databricks bundle run biomni_mcp -t "$TARGET"
 
 echo "=== Deployment complete ==="
-echo "Check status: databricks apps get biomni-mcp-server"
+echo "Check status: databricks apps get mcp-biomni-tools"

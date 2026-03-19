@@ -1,6 +1,4 @@
-"""Job management tools for monitoring Databricks job runs."""
-
-import json
+"""Unified job management tool for monitoring Databricks job runs."""
 
 from databricks.sdk import WorkspaceClient
 from mcp.server.fastmcp import FastMCP
@@ -10,51 +8,52 @@ from src.job_runner import cancel_job, get_job_status, list_recent_runs
 
 def register(mcp: FastMCP, workspace_client: WorkspaceClient) -> None:
     @mcp.tool()
-    async def check_job_status(run_id: str) -> str:
-        """Check the status of a submitted Biomni tool job.
+    async def manage_jobs(
+        action: str,
+        run_id: str = "",
+        limit: int = 20,
+    ) -> str:
+        """Manage Biomni bioinformatics tool jobs on Databricks.
 
         Args:
-            run_id: The Databricks run ID returned when the job was submitted.
+            action: One of 'status', 'list', or 'cancel'.
+            run_id: Databricks run ID (required for 'status' and 'cancel').
+            limit: Max number of runs to return (for 'list' only, default 20).
         """
-        status = await get_job_status(workspace_client, run_id)
-        state = status["state"]
-        result = status.get("result_state")
-        url = status.get("run_page_url", "")
+        if action == "status":
+            if not run_id:
+                return "**Error:** 'status' requires a `run_id`."
+            status = await get_job_status(workspace_client, run_id)
+            state = status["state"]
+            result = status.get("result_state")
+            url = status.get("run_page_url", "")
+            lines = [f"## Job Status: Run {run_id}\n"]
+            lines.append(f"- **State:** {state}")
+            if result:
+                lines.append(f"- **Result:** {result}")
+            if status.get("message"):
+                lines.append(f"- **Message:** {status['message']}")
+            if url:
+                lines.append(f"- **Details:** [View in Databricks]({url})")
+            return "\n".join(lines)
 
-        lines = [f"## Job Status: Run {run_id}\n"]
-        lines.append(f"- **State:** {state}")
-        if result:
-            lines.append(f"- **Result:** {result}")
-        if status.get("message"):
-            lines.append(f"- **Message:** {status['message']}")
-        if url:
-            lines.append(f"- **Details:** [View in Databricks]({url})")
-        return "\n".join(lines)
+        elif action == "list":
+            runs = await list_recent_runs(workspace_client, limit)
+            if not runs:
+                return "No recent Biomni jobs found."
+            lines = ["## Recent Biomni Jobs\n"]
+            for r in runs:
+                state = r["state"]
+                result = r.get("result_state") or ""
+                display = f"{state}/{result}" if result else state
+                lines.append(f"- **{r['run_name']}** (ID: {r['run_id']}) — {display}")
+            return "\n".join(lines)
 
-    @mcp.tool()
-    async def list_biomni_jobs(limit: int = 20) -> str:
-        """List recent Biomni tool job runs.
+        elif action == "cancel":
+            if not run_id:
+                return "**Error:** 'cancel' requires a `run_id`."
+            msg = await cancel_job(workspace_client, run_id)
+            return msg
 
-        Args:
-            limit: Maximum number of runs to return (default 20).
-        """
-        runs = await list_recent_runs(workspace_client, limit)
-        if not runs:
-            return "No recent Biomni jobs found."
-        lines = ["## Recent Biomni Jobs\n"]
-        for r in runs:
-            state = r["state"]
-            result = r.get("result_state") or ""
-            display = f"{state}/{result}" if result else state
-            lines.append(f"- **{r['run_name']}** (ID: {r['run_id']}) — {display}")
-        return "\n".join(lines)
-
-    @mcp.tool()
-    async def cancel_biomni_job(run_id: str) -> str:
-        """Cancel a running Biomni tool job.
-
-        Args:
-            run_id: The Databricks run ID to cancel.
-        """
-        msg = await cancel_job(workspace_client, run_id)
-        return msg
+        else:
+            return f"**Error:** Unknown action `{action}`. Use 'status', 'list', or 'cancel'."

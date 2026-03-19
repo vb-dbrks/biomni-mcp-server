@@ -1,6 +1,6 @@
 """Tests for MCP tool registration — verify all expected tools are registered."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -11,7 +11,7 @@ from mcp.server.fastmcp import FastMCP
 def mcp_with_tools():
     """Create a FastMCP instance with all tools registered."""
     mcp = FastMCP("TestBiomniTools")
-    client = MagicMock()  # mock WorkspaceClient
+    client = MagicMock()
 
     from src.tools import register_all_tools
     register_all_tools(mcp, client)
@@ -19,39 +19,23 @@ def mcp_with_tools():
 
 
 EXPECTED_TOOLS = [
-    # File management
-    "list_volume_files",
-    "upload_file_to_volume",
-    "get_file_preview",
-    # Job management
-    "check_job_status",
-    "list_biomni_jobs",
-    "cancel_biomni_job",
-    # Tier 1
+    # Tier 1 — in-app Python packages (6)
     "predict_rna_secondary_structure",
     "annotate_plasmid",
     "analyze_protein_conservation",
     "analyze_protein_phylogeny",
     "blast_sequence",
     "test_pylabrobot_script",
-    # Tier 2
-    "align_sequences_bwa",
-    "process_alignments_samtools",
-    "filter_variants_bcftools",
-    "intersect_regions_bedtools",
-    # Tier 3
-    "perform_chipseq_peak_calling_with_macs2",
-    "find_enriched_motifs_with_homer",
-    "detect_and_annotate_somatic_mutations",
-    "detect_and_characterize_structural_variations",
-    "analyze_copy_number_purity_ploidy_and_focal_events",
+    # Tier 2 — Glow pipe (1 consolidated)
+    "run_alignment_pipeline",
+    # Tier 3 — driver node (4: chipseq, somatic, structural, prokka)
+    "run_chipseq_analysis",
+    "run_somatic_mutation_pipeline",
+    "run_structural_variant_analysis",
     "annotate_bacterial_genome",
-    # Tier 4
-    "segment_with_nn_unet",
-    "run_diffdock_with_smiles",
-    "segment_cells_with_deep_learning",
-    "docking_autodock_vina",
-    "run_autosite",
+    # Tier 4 — GPU (2 consolidated)
+    "run_medical_imaging",
+    "run_molecular_docking",
 ]
 
 
@@ -71,9 +55,10 @@ def test_no_extra_tools(mcp_with_tools):
 
 
 def test_tool_count(mcp_with_tools):
-    """Verify total tool count matches expected (27 tools)."""
+    """Verify total tool count is within Genie Code limit of 15."""
     registered = mcp_with_tools._tool_manager._tools
     assert len(registered) == len(EXPECTED_TOOLS), (
         f"Expected {len(EXPECTED_TOOLS)} tools, got {len(registered)}: "
         f"{sorted(registered.keys())}"
     )
+    assert len(registered) <= 15, f"Exceeds Genie Code 15-tool limit: {len(registered)} tools"
