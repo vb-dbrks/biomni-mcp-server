@@ -15,6 +15,7 @@ import logging
 import os
 
 from databricks.sdk import WorkspaceClient
+from databricks.sdk.config import Config
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
@@ -58,7 +59,8 @@ class OBOAuthMiddleware(BaseHTTPMiddleware):
 
         if user_token:
             host = os.environ.get("DATABRICKS_HOST", "")
-            client = WorkspaceClient(host=host, token=user_token)
+            cfg = Config(host=host, token=user_token, auth_type="pat")
+            client = WorkspaceClient(config=cfg)
             _workspace_client_var.set(client)
             logger.info("OBO auth: running as user %s", user_email)
         else:
