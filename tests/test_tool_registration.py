@@ -18,13 +18,14 @@ def mcp_with_tools():
 
 
 EXPECTED_TOOLS = [
-    # Tier 1 — in-app Python packages (7)
+    # Tier 1 — in-app Python packages (8)
     "ping_biomni",
     "predict_rna_secondary_structure",
     "annotate_plasmid",
     "analyze_protein_conservation",
     "analyze_protein_phylogeny",
     "blast_sequence",
+    "check_blast_result",
     "test_pylabrobot_script",
     # Tier 2 — Glow pipe (1 consolidated)
     "run_alignment_pipeline",

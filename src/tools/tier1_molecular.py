@@ -250,7 +250,12 @@ def register(mcp: FastMCP) -> None:
         except Exception as e:
             return format_error("Phylogeny", e)
 
-    # ── BLAST (NCBI REST API via BioPython) ────────────────────────────
+    # ── BLAST (async: submit + poll) ─────────────────────────────────────
+
+    import threading
+    _blast_results: dict[str, dict] = {}
+    _blast_counter = 0
+    _blast_lock = threading.Lock()
 
     @mcp.tool()
     async def blast_sequence(
@@ -259,28 +264,32 @@ def register(mcp: FastMCP) -> None:
         program: str = "blastp",
         max_hits: int = 5,
     ) -> str:
-        """Search for similar sequences using NCBI BLAST via remote API.
+        """Submit a BLAST search against NCBI. Returns a job ID immediately.
 
-        Uses the curated SwissProt database by default for faster results.
-        The larger 'nr' database may time out.
+        NCBI BLAST takes 30-90 seconds. This tool submits the search and
+        returns a job ID. Use check_blast_result with the job ID to get results.
 
         Args:
             sequence: Query sequence (amino acid or nucleotide).
-            database: BLAST database — swissprot (fast), pdb, nr (slow), nt, refseq_protein.
+            database: BLAST database — swissprot (fast), pdb, nr (slow), refseq_protein.
             program: BLAST program (blastp, blastn, blastx, tblastn).
             max_hits: Maximum number of alignments to report (default 5).
         """
-        print(f"=== BLAST called: program={program} db={database} seq={sequence[:20]}... ===", flush=True)
+        nonlocal _blast_counter
         VALID_PROGRAMS = {"blastp", "blastn", "blastx", "tblastn", "tblastx"}
         if program not in VALID_PROGRAMS:
             return f"**Error:** Invalid program: {program}. Use: {', '.join(sorted(VALID_PROGRAMS))}"
 
-        try:
-            from Bio.Blast import NCBIWWW, NCBIXML
+        with _blast_lock:
+            _blast_counter += 1
+            job_id = f"blast-{_blast_counter}"
 
-            loop = asyncio.get_event_loop()
+        _blast_results[job_id] = {"status": "running", "result": None}
 
-            def do_blast():
+        def run_blast():
+            try:
+                from Bio.Blast import NCBIWWW, NCBIXML
+
                 result_handle = NCBIWWW.qblast(
                     program, database, sequence,
                     hitlist_size=max_hits, format_type="XML",
@@ -291,25 +300,51 @@ def register(mcp: FastMCP) -> None:
                 lines = []
                 for alignment in blast_record.alignments[:max_hits]:
                     hsp = alignment.hsps[0]
+                    pct = 100 * hsp.identities / hsp.align_length if hsp.align_length else 0
                     lines.append(
                         f"**{alignment.title[:80]}**\n"
                         f"  Score: {hsp.score}, E-value: {hsp.expect}\n"
-                        f"  Identities: {hsp.identities}/{hsp.align_length} "
-                        f"({100 * hsp.identities / hsp.align_length:.1f}%)\n"
+                        f"  Identities: {hsp.identities}/{hsp.align_length} ({pct:.1f}%)\n"
                     )
 
-                return "\n".join(lines) if lines else "(no hits found)"
+                text = "\n".join(lines) if lines else "(no hits found)"
+                _blast_results[job_id] = {"status": "complete", "result": text}
+            except Exception as e:
+                _blast_results[job_id] = {"status": "error", "result": str(e)}
 
-            result_text = await loop.run_in_executor(None, do_blast)
+        thread = threading.Thread(target=run_blast, daemon=True)
+        thread.start()
 
+        return (
+            f"## BLAST Search Submitted\n\n"
+            f"- **Job ID:** {job_id}\n"
+            f"- **Program:** {program}\n"
+            f"- **Database:** {database}\n"
+            f"- **Sequence:** {sequence[:30]}...\n\n"
+            f"NCBI BLAST typically takes 30-90 seconds.\n"
+            f"Use `check_blast_result(job_id='{job_id}')` to get results."
+        )
+
+    @mcp.tool()
+    async def check_blast_result(job_id: str) -> str:
+        """Check the result of a previously submitted BLAST search.
+
+        Args:
+            job_id: The job ID returned by blast_sequence.
+        """
+        if job_id not in _blast_results:
+            return f"**Error:** Unknown job ID: {job_id}"
+
+        entry = _blast_results[job_id]
+        if entry["status"] == "running":
+            return f"BLAST search **{job_id}** is still running. Try again in 30 seconds."
+        elif entry["status"] == "error":
+            return f"BLAST search **{job_id}** failed: {entry['result']}"
+        else:
             return format_tool_result(
-                f"BLAST Search ({program} vs {database})",
-                stdout=result_text,
+                f"BLAST Search Results ({job_id})",
+                stdout=entry["result"],
             )
-        except ImportError:
-            return "**Error:** BioPython not installed. Run: `pip install biopython`"
-        except Exception as e:
-            return format_error(f"BLAST ({program})", e)
 
     # ── PyLabRobot ─────────────────────────────────────────────────────
 
