@@ -223,19 +223,20 @@ def register(mcp: FastMCP) -> None:
     @mcp.tool()
     async def blast_sequence(
         sequence: str,
-        database: str = "nr",
+        database: str = "swissprot",
         program: str = "blastp",
-        max_hits: int = 10,
+        max_hits: int = 5,
     ) -> str:
         """Search for similar sequences using NCBI BLAST via remote API.
 
-        Submits the query to NCBI's BLAST servers. Takes 30s-5min.
+        Uses the curated SwissProt database by default for faster results.
+        The larger 'nr' database may time out.
 
         Args:
             sequence: Query sequence (amino acid or nucleotide).
-            database: BLAST database (nr, nt, swissprot, pdb, refseq_protein).
+            database: BLAST database — swissprot (fast), pdb, nr (slow), nt, refseq_protein.
             program: BLAST program (blastp, blastn, blastx, tblastn).
-            max_hits: Maximum number of alignments to report.
+            max_hits: Maximum number of alignments to report (default 5).
         """
         VALID_PROGRAMS = {"blastp", "blastn", "blastx", "tblastn", "tblastx"}
         if program not in VALID_PROGRAMS:
@@ -243,6 +244,7 @@ def register(mcp: FastMCP) -> None:
 
         try:
             from Bio.Blast import NCBIWWW, NCBIXML
+            import concurrent.futures
 
             loop = asyncio.get_event_loop()
 
@@ -266,7 +268,18 @@ def register(mcp: FastMCP) -> None:
 
                 return "\n".join(lines) if lines else "(no hits found)"
 
-            result_text = await loop.run_in_executor(None, do_blast)
+            try:
+                result_text = await asyncio.wait_for(
+                    loop.run_in_executor(None, do_blast),
+                    timeout=25,
+                )
+            except asyncio.TimeoutError:
+                return (
+                    f"**BLAST search timed out** (25s limit). "
+                    f"The NCBI {database} database may be slow right now.\n\n"
+                    f"Try: `blast_sequence(sequence='...', database='swissprot')` for faster results, "
+                    f"or use `database='pdb'` for protein structures."
+                )
 
             return format_tool_result(
                 f"BLAST Search ({program} vs {database})",

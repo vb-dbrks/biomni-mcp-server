@@ -16,8 +16,7 @@ import os
 
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.config import Config
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 logger = logging.getLogger("biomni.auth")
 
@@ -50,12 +49,24 @@ def get_workspace_client() -> WorkspaceClient:
         return _get_sp_client()
 
 
-class OBOAuthMiddleware(BaseHTTPMiddleware):
-    """Middleware that creates a per-request WorkspaceClient from the user's token."""
+class OBOAuthMiddleware:
+    """Pure ASGI middleware — no BaseHTTPMiddleware (avoids streaming issues).
 
-    async def dispatch(self, request: Request, call_next):
-        user_token = request.headers.get("X-Forwarded-Access-Token")
-        user_email = request.headers.get("X-Forwarded-Email", "unknown")
+    Extracts X-Forwarded-Access-Token from request headers and sets a
+    per-request WorkspaceClient via contextvars before passing to the app.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] not in ("http", "websocket"):
+            await self.app(scope, receive, send)
+            return
+
+        headers = dict(scope.get("headers", []))
+        user_token = headers.get(b"x-forwarded-access-token", b"").decode() or None
+        user_email = headers.get(b"x-forwarded-email", b"unknown").decode()
 
         if user_token:
             host = os.environ.get("DATABRICKS_HOST", "")
@@ -65,7 +76,5 @@ class OBOAuthMiddleware(BaseHTTPMiddleware):
             logger.info("OBO auth: running as user %s", user_email)
         else:
             _workspace_client_var.set(_get_sp_client())
-            logger.debug("No user token — using service principal")
 
-        response = await call_next(request)
-        return response
+        await self.app(scope, receive, send)
